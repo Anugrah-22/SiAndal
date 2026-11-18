@@ -1,3 +1,6 @@
+// Sandi bawaan untuk akun utama Operator (silakan ganti sesuai keinginan)
+const SANDI_OPERATOR = 'admin123';
+
 function showLogin() {
   const loginBox = document.getElementById('login');
   const userInput = document.getElementById('lu');
@@ -8,30 +11,39 @@ function showLogin() {
 document.getElementById('lf').onsubmit = (e) => {
   e.preventDefault();
   const rawUser = document.getElementById('lu').value.trim();
+  const rawPass = document.getElementById('lp').value;
   const uLower = rawUser.toLowerCase();
 
-  // Cek apakah pengguna ada di daftar akun yang dibuat Operator
-  const found = (D.users || []).find(u => u.username.toLowerCase() === uLower);
-
-  let role = 'guru';
-  let kelasWali = '';
-  let namaLengkap = rawUser || 'Wali Kelas';
-
-  if (found) {
-    role = found.role;
-    kelasWali = found.kelas || '';
-    namaLengkap = found.nama;
-  } else if (uLower === 'operator' || uLower === 'admin') {
-    role = 'operator';
-    namaLengkap = 'Operator Sekolah';
-  } else if (uLower === 'kepsek') {
-    role = 'kepsek';
-    namaLengkap = 'Kepala Sekolah';
+  // 1. Cek apakah login sebagai Operator Utama
+  if (uLower === 'operator') {
+    if (rawPass !== SANDI_OPERATOR) {
+      toast('Kata sandi Operator salah!');
+      return;
+    }
+    ME = { username: 'operator', role: 'operator', nama: 'Operator Sekolah', kelas: '' };
+  } else {
+    // 2. Cek apakah nama pengguna dan sandi cocok dengan data buatan Operator
+    const found = (D.users || []).find(u => u.username.toLowerCase() === uLower);
+    
+    if (!found) {
+      toast('Akun tidak ditemukan. Hubungi Operator sekolah.');
+      return;
+    }
+    if (found.pass !== rawPass) {
+      toast('Kata sandi salah!');
+      return;
+    }
+    
+    ME = { 
+      username: found.username, 
+      role: found.role, 
+      nama: found.nama, 
+      kelas: found.kelas || '' 
+    };
   }
 
-  ME = { username: uLower, role, nama: namaLengkap, kelas: kelasWali };
+  // Simpan sesi masuk yang valid
   localStorage.setItem('siandal.v6.me', JSON.stringify(ME));
-
   document.getElementById('lp').value = '';
   document.getElementById('login').style.display = 'none';
 
