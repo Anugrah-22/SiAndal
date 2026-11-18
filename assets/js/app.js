@@ -431,17 +431,9 @@ $('uOut').onclick = async e => {
   if (!b || b.dataset.d === undefined) return;
   const target = D.users[Number(b.dataset.d)];
   if (target && confirm('Hapus pengguna ' + target.nama + '?')) {
-    if (navigator.onLine && target.id) await sb.from('users').delete().eq('id', target.id);
-    D.users.splice(Number(b.dataset.d), 1);
-    saveLocalData();
-    rPengguna();
-  }
-};
-
-$('uOut').onclick = e => {
-  const b = e.target.closest('button');
-  if (!b || b.dataset.d === undefined) return;
-  if (confirm('Hapus pengguna ini?')) {
+    if (navigator.onLine && target.id && typeof sb !== 'undefined' && sb) {
+      await sb.from('users').delete().eq('id', target.id);
+    }
     D.users.splice(Number(b.dataset.d), 1);
     saveLocalData();
     rPengguna();
@@ -449,19 +441,6 @@ $('uOut').onclick = e => {
 };
 
 /* ===== Inisialisasi PWA & Jalankan Aplikasi ===== */
-function start() {
-  mode();
-  const saved = localStorage.getItem('siandal.v6.me');
-  if (saved) {
-    ME = JSON.parse(saved);
-    $('login').style.display = 'none';
-    buildNav();
-    go(ME.role === 'guru' ? 'input' : 'dasbor');
-  } else {
-    showLogin();
-  }
-}
-
 let DP = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); DP = e; $('inst').style.display = ''; });
 $('inst').onclick = () => { if (DP) { DP.prompt(); DP = null; $('inst').style.display = 'none'; } };
@@ -481,8 +460,11 @@ async function start() {
     $('login').style.display = 'none';
     buildNav();
     go(ME.role === 'guru' ? 'input' : 'dasbor');
-    if (await pullFromCloud()) render();
+    if (typeof pullFromCloud === 'function' && await pullFromCloud()) render();
   } else {
     showLogin();
   }
 }
+
+// Jalankan aplikasi pertama kali
+start();
