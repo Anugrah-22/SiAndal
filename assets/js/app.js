@@ -96,10 +96,15 @@ function buildNav() {
   $('who').innerHTML = `${E(ME.nama)} (${ROLE[ME.role]}) <button class="lk" data-k="sync">Sinkron</button><button class="lk" data-k="out">Keluar</button>`;
 }
 
-$('who').onclick = e => {
+$('who').onclick = async e => {
   const b = e.target.closest('button');
   if (!b) return;
-  if (b.dataset.k === 'sync') return syncCloud();
+  if (b.dataset.k === 'sync') {
+    toast('Menyinkronkan data...');
+    const ok = await pullFromCloud();
+    if (ok) { render(); toast('Sinkronisasi cloud selesai!'); }
+    else toast('Gagal terhubung ke server. Data tetap aman di perangkat.');
+  }
   if (b.dataset.k === 'out') return logoutApp();
 };
 
@@ -217,7 +222,7 @@ $('iAll').onclick = () => {
   });
 };
 
-$('iSave').onclick = () => {
+$('iSave').onclick = async () => {
   const d = $('iDate').value, k = $('iKelas').value, L = D.siswa.filter(s => s.kelas === k);
   if (!d || !L.length) return toast('Pilih tanggal dan kelas yang memiliki siswa.');
   const m = L.filter(s => !cur[s.id]);
@@ -228,7 +233,21 @@ $('iSave').onclick = () => {
   }
   (D.abs[d] = D.abs[d] || {})[k] = Object.assign({}, cur);
   saveLocalData();
-  toast('Absensi tersimpan!');
+
+  if (navigator.onLine) {
+    const rows = Object.keys(cur).map(sid => ({
+      id: `${d}_${sid}`,
+      tanggal: d,
+      kelas: k,
+      siswa_id: sid,
+      status: cur[sid]
+    }));
+    await sb.from('absensi').upsert(rows);
+    toast('Absensi tersimpan ke Cloud!');
+  } else {
+    toast('Offline: Absensi tersimpan di HP.');
+  }
+
   $('dDate').value = d;
   $('dKelas').value = k;
   go('dasbor');
@@ -268,8 +287,9 @@ function rRekap() {
 $('rMon').onchange = $('rKelas').onchange = rRekap;
 
 /* ===== Data Siswa ===== */
-function impor(txt) {
+async function impor(txt) {
   let added = 0, skip = 0;
+  const baru = [];
   txt.split(/\r?\n/).forEach((l, i) => {
     if (!l.trim()) return;
     const c = l.split(/\t|;|,/).map(x => x.replace(/^"|"$/g, '').trim());
@@ -277,11 +297,14 @@ function impor(txt) {
     if (!c[0] || !c[1]) { skip++; return; }
     const dup = D.siswa.some(s => s.nama.toLowerCase() === c[0].toLowerCase() && s.kelas.toLowerCase() === c[1].toLowerCase());
     if (dup) { skip++; return; }
-    D.siswa.push({ id: 'S' + Date.now() + Math.random().toString(36).slice(2, 6), nama: c[0], kelas: c[1], hp: c[2] || '' });
+    const item = { id: 'S' + Date.now() + Math.random().toString(36).slice(2, 6), nama: c[0], kelas: c[1], hp: c[2] || '' };
+    D.siswa.push(item);
+    baru.push(item);
     added++;
   });
   saveLocalData();
-  toast(`${added} siswa ditambahkan${skip ? `, ${skip} dilewati (kosong atau dobel)` : ''}.`);
+  if (baru.length && navigator.onLine) await sb.from('siswa').insert(baru);
+  toast(`${added} siswa ditambahkan${skip ? `, ${skip} dilewati` : ''}.`);
   render();
 }
 
@@ -382,15 +405,37 @@ function rPengguna() {
     : '<div class="empty">Belum ada pengguna tambahan.</div>';
 }
 
-$('uAdd').onclick = () => {
+$('uAdd').onclick = async () => {
   if (!D.users) D.users = [];
-  const u = $('uU').value.trim(), n = $('uN').value.trim();
-  if (!u || !n) return toast('Isi nama pengguna dan nama lengkap.');
-  D.users.push({ username: u, nama: n, role: $('uR').value, kelas: $('uK').value.trim() });
+  const u = $('uU').value.trim(), n = $('uN').value.trim(), p = $('uP').value.trim();
+  if (!u || !n || !p) return toast('Nama pengguna, nama lengkap, dan kata sandi wajib diisi.');
+  if (p.length < 6) return toast('Kata sandi minimal 6 karakter.');
+  if (D.users.some(x => x.username.toLowerCase() === u.toLowerCase())) return toast('Nama pengguna sudah dipakai.');
+
+  const newUser = { username: u, nama: n, role: $('uR').value, kelas: $('uK').value.trim(), pass: p };
+  if (navigator.onLine) {
+    const { error } = await sb.from('users').insert([newUser]);
+    if (error) return toast('Gagal menyimpan ke server: ' + error.message);
+    await pullFromCloud();
+  } else {
+    D.users.push(newUser);
+    saveLocalData();
+  }
   ['uU', 'uN', 'uK', 'uP'].forEach(i => $(i).value = '');
-  saveLocalData();
-  toast('Pengguna ditambahkan.');
+  toast('Pengguna berhasil ditambahkan.');
   rPengguna();
+};
+
+$('uOut').onclick = async e => {
+  const b = e.target.closest('button');
+  if (!b || b.dataset.d === undefined) return;
+  const target = D.users[Number(b.dataset.d)];
+  if (target && confirm('Hapus pengguna ' + target.nama + '?')) {
+    if (navigator.onLine && target.id) await sb.from('users').delete().eq('id', target.id);
+    D.users.splice(Number(b.dataset.d), 1);
+    saveLocalData();
+    rPengguna();
+  }
 };
 
 $('uOut').onclick = e => {
@@ -428,4 +473,16 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-start();
+async function start() {
+  mode();
+  const saved = localStorage.getItem('siandal.v6.me');
+  if (saved) {
+    ME = JSON.parse(saved);
+    $('login').style.display = 'none';
+    buildNav();
+    go(ME.role === 'guru' ? 'input' : 'dasbor');
+    if (await pullFromCloud()) render();
+  } else {
+    showLogin();
+  }
+}
