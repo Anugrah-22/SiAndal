@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1B6E4F">
+  <link rel="apple-touch-icon" href="assets/img/icon-192.png">
+  <title>SiAndal – Absen andal, online maupun offline</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<header>
+ <div class="brand">
+  <svg width="40" height="40" viewBox="0 0 40 40" aria-label="Logo sekolah"><path d="M20 2l16 6v12c0 9-7 16-16 19C11 36 4 29 4 20V8z" fill="#fff"/><path d="M12 28L20 10l8 18h-4l-1.5-3.5h-5L16 28zm7-7h2l-1-2.6z" fill="#1B6E4F"/></svg>
+  <div><b>SiAndal</b><small>Absen andal, online maupun offline</small></div>
+ </div>
+ <div class="hr">
+   <button class="lk" id="inst" style="display:none">Pasang aplikasi</button>
+   <span id="who"></span>
+   <span class="mode" id="mode"></span>
+ </div>
+</header>
+
+<div id="login" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:20;place-items:center;padding:16px">
+  <form class="box" id="lf" style="width:100%;max-width:340px;margin:0">
+    <h2 id="lh">Masuk ke SiAndal</h2>
+    <label>Nama pengguna<input id="lu" autocomplete="username" placeholder="operator / nama guru" required></label><br>
+    <label>Kata sandi<input id="lp" type="password" autocomplete="current-password" required></label><br>
+    <p class="mut">Ketik <b>operator</b> untuk masuk sebagai admin, atau ketik nama Anda untuk masuk sebagai guru.</p>
+    <button class="btn" id="lb" style="width:100%">Masuk</button>
+  </form>
+</div>
+
+<nav id="nav"></nav>
+<div id="qb" style="display:none;background:#fdeedd;color:#7a3d06;padding:8px 16px;font-weight:700"></div>
+
+<main>
+<section id="t-dasbor">
+ <h2>Dasbor Kehadiran</h2>
+ <div class="bar"><label>Tanggal<input type="date" id="dDate"></label><label>Kelas<select id="dKelas"></select></label></div>
+ <div id="dOut"></div>
+</section>
+
+<section id="t-input">
+ <h2>Input Absensi Harian</h2>
+ <div class="bar"><label>Tanggal<input type="date" id="iDate"></label><label>Kelas<select id="iKelas"></select></label>
+ <button class="btn o" id="iAll">Semua Hadir</button></div>
+ <p class="mut">Ketuk status kehadiran tiap siswa: H Hadir, S Sakit, I Izin, A Alpa.</p>
+ <div class="box" id="iOut"></div>
+ <button class="btn" id="iSave">Simpan absensi</button>
+</section>
+
+<section id="t-rekap">
+ <h2>Rekap Bulanan dan Peringatan</h2>
+ <div class="bar"><label>Bulan<input type="month" id="rMon"></label><label>Kelas<select id="rKelas"></select></label></div>
+ <div id="rOut"></div>
+</section>
+
+<section id="t-siswa">
+ <h2>Data Master Siswa dan Kelas</h2>
+ <div class="box">
+  <h3>Impor siswa</h3>
+  <p class="mut">Satu baris per siswa: nama, kelas, nomor HP orang tua (pisahkan dengan koma, titik koma, atau tab).</p>
+  <textarea id="sPaste" placeholder="Ahmad Fauzi, X-A, 081200000001"></textarea>
+  <div class="bar" style="margin:10px 0 0"><button class="btn" id="sImp">Impor</button>
+  <label>Berkas CSV<input type="file" id="sFile" accept=".csv,.txt"></label></div>
+ </div>
+ <div class="box">
+  <h3>Daftar siswa <span class="mut" id="sCount"></span></h3>
+  <div class="bar"><label>Kelas<select id="sKelas"></select></label></div>
+  <div class="sc" id="sOut"></div>
+ </div>
+</section>
+
+<section id="t-lap">
+ <h2>Laporan dan Ekspor</h2>
+ <div class="box">
+  <h3>Laporan bulanan</h3>
+  <div class="bar"><label>Bulan<input type="month" id="lMon"></label>
+  <button class="btn" id="lPrint">Cetak / simpan PDF</button><button class="btn o" id="lCsv">Unduh Excel (CSV)</button></div>
+ </div>
+ <div class="box">
+  <h3>Rekap JSON</h3>
+  <button class="btn o" id="lJson">Unduh rekap online (JSON)</button>
+ </div>
+</section>
+
+<section id="t-pengguna">
+ <h2>Pengguna dan Hak Akses</h2>
+ <div class="box"><h3>Tambah pengguna</h3><div class="bar">
+  <label>Nama pengguna<input id="uU"></label><label>Nama lengkap<input id="uN"></label>
+  <label>Peran<select id="uR"><option value="guru">Wali kelas / guru</option><option value="kepsek">Kepala sekolah</option><option value="operator">Operator</option></select></label>
+  <label>Kelas wali kelas<input id="uK" placeholder="mis. X-A; kosong = semua"></label>
+  <label>Kata sandi<input id="uP" type="password" autocomplete="new-password"></label>
+  <button class="btn" id="uAdd">Tambah</button></div></div>
+ <div class="box"><div class="sc" id="uOut"></div></div>
+</section>
+
+<section id="t-panduan">
+ <h2>Panduan dan Kontak</h2>
+ <div class="box">
+  <h3>Cara memakai</h3>
+  <ol>
+   <li>Operator mengisi Data Siswa (impor CSV atau tempel dari Excel) dan mengelola pengguna.</li>
+   <li>Wali kelas membuka Input Absensi, memilih tanggal dan kelas, mengetuk status tiap siswa, lalu Simpan.</li>
+   <li>Kepala sekolah dan guru membuka Dasbor untuk melihat kehadiran harian.</li>
+   <li>Wali kelas memeriksa Rekap untuk siswa di bawah 90% dan mengirim kabar ke orang tua lewat WhatsApp.</li>
+  </ol>
+ </div>
+</section>
+</main>
+<div id="pr"></div>
+<div id="toast"></div>
+
+<!-- Library Supabase & Script Modular -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
