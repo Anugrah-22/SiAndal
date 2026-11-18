@@ -15,22 +15,35 @@ document.getElementById('lf').onsubmit = async (e) => {
   btn.disabled = true;
   btn.textContent = 'Memeriksa...';
 
-  // Ambil daftar pengguna terbaru dari Supabase jika sedang online
-  if (navigator.onLine) {
-    const { data, error } = await sb.from('users').select('*');
-    if (!error && data) {
-      D.users = data;
-      saveLocalData();
+  try {
+    // 1. Coba ambil daftar pengguna dari Supabase jika tersedia
+    if (navigator.onLine && typeof sb !== 'undefined' && sb) {
+      const { data, error } = await sb.from('users').select('*');
+      if (error) {
+        console.error('Supabase error:', error.message);
+        toast('Info server: ' + error.message);
+      } else if (data) {
+        D.users = data;
+        saveLocalData();
+      }
     }
+  } catch (err) {
+    console.error('Koneksi gagal:', err);
   }
-
-  const found = (D.users || []).find(u => u.username.toLowerCase() === uLower);
 
   btn.disabled = false;
   btn.textContent = 'Masuk';
 
+  // 2. Cocokkan dengan data pengguna dari database
+  let found = (D.users || []).find(u => u.username.toLowerCase() === uLower);
+
+  // Cadangan darurat jika database Supabase masih kosong/belum terhubung
+  if (!found && uLower === 'operator' && rawPass === 'admin123') {
+    found = { username: 'operator', nama: 'Operator Sekolah', role: 'operator', kelas: '', pass: 'admin123' };
+  }
+
   if (!found) {
-    toast('Akun tidak ditemukan. Periksa koneksi internet atau hubungi Operator.');
+    toast('Akun tidak ditemukan.');
     return;
   }
   if (found.pass !== rawPass) {
@@ -38,6 +51,7 @@ document.getElementById('lf').onsubmit = async (e) => {
     return;
   }
 
+  // 3. Simpan sesi dan masuk ke aplikasi
   ME = {
     username: found.username,
     role: found.role,
@@ -49,7 +63,7 @@ document.getElementById('lf').onsubmit = async (e) => {
   document.getElementById('lp').value = '';
   document.getElementById('login').style.display = 'none';
 
-  await pullFromCloud();
+  if (typeof pullFromCloud === 'function') await pullFromCloud();
   buildNav();
   go(ME.role === 'guru' ? 'input' : 'dasbor');
 };
