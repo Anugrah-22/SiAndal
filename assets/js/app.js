@@ -407,22 +407,36 @@ function rPengguna() {
 
 $('uAdd').onclick = async () => {
   if (!D.users) D.users = [];
-  const u = $('uU').value.trim(), n = $('uN').value.trim(), p = $('uP').value.trim();
+  const u = $('uU').value.trim().toLowerCase();
+  const n = $('uN').value.trim();
+  const p = $('uP').value.trim();
+
   if (!u || !n || !p) return toast('Nama pengguna, nama lengkap, dan kata sandi wajib diisi.');
   if (p.length < 6) return toast('Kata sandi minimal 6 karakter.');
-  if (D.users.some(x => x.username.toLowerCase() === u.toLowerCase())) return toast('Nama pengguna sudah dipakai.');
 
   const newUser = { username: u, nama: n, role: $('uR').value, kelas: $('uK').value.trim(), pass: p };
-  if (navigator.onLine) {
+
+  if (navigator.onLine && typeof sb !== 'undefined' && sb) {
     const { error } = await sb.from('users').insert([newUser]);
-    if (error) return toast('Gagal menyimpan ke server: ' + error.message);
+    if (error) {
+      if (error.code === '23505') {
+        await pullFromCloud();
+        rPengguna();
+        return toast('Nama pengguna "' + u + '" sudah terdaftar di server!');
+      }
+      return toast('Gagal menyimpan ke server: ' + error.message);
+    }
     await pullFromCloud();
   } else {
+    if (D.users.some(x => x.username.toLowerCase() === u)) {
+      return toast('Nama pengguna "' + u + '" sudah dipakai.');
+    }
     D.users.push(newUser);
     saveLocalData();
   }
+
   ['uU', 'uN', 'uK', 'uP'].forEach(i => $(i).value = '');
-  toast('Pengguna berhasil ditambahkan.');
+  toast('Pengguna berhasil ditambahkan ke Cloud!');
   rPengguna();
 };
 
